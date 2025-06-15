@@ -1,34 +1,70 @@
 <template>
-  <div>
-    <h1>Welcome to JamRoom</h1>
-    <input v-model="newBand" placeholder="Band name" />
-    <button @click="createBand">Create</button>
-    <ul>
-      <li v-for="band in bands" :key="band._id">{{ band.name }}</li>
-    </ul>
+  <div class="p-4 max-w-md mx-auto">
+    <h2 class="text-2xl font-bold mb-4">Login / Register</h2>
+
+    <form @submit.prevent="handleSubmit" class="space-y-4">
+      <input v-model="email" type="email" placeholder="Email" class="w-full border p-2 rounded" />
+      <input v-model="password" type="password" placeholder="Password" class="w-full border p-2 rounded" />
+
+      <div class="flex gap-2">
+        <button @click="mode = 'login'" type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Login</button>
+        <button @click="mode = 'register'" type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Register</button>
+      </div>
+    </form>
+
+    <div v-if="token" class="mt-6">
+      <h3 class="text-xl font-semibold mb-2">Your Bands</h3>
+      <ul>
+        <li v-for="band in bands" :key="band._id" class="p-2 border rounded mb-1">
+          {{ band.name }}
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-const newBand = ref('')
+import { ref } from 'vue'
+
+const email = ref('')
+const password = ref('')
+const token = ref('')
 const bands = ref([])
-const owner = 'user123' // Replace with auth later
+const mode = ref('login')
+
+const handleSubmit = async () => {
+  const endpoint = mode.value === 'register' ? 'http://localhost:8080/api/auth/register' : 'http://localhost:8080/api/auth/login'
+  const res = await $fetch(endpoint, {
+    method: 'POST',
+    body: { email: email.value, password: password.value },
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+
+  if (mode.value === 'login') {
+    token.value = res.token
+    fetchBands()
+  } else {
+    alert('Registration successful. You can now log in.')
+  }
+}
 
 const fetchBands = async () => {
-  const res = await fetch(`http://localhost:8080/api/bands/${owner}`)
-  bands.value = await res.json()
-}
+  if (!token.value) return
 
-const createBand = async () => {
-  await fetch('http://localhost:8080/api/bands', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: newBand.value, owner })
+  const res = await $fetch('http://localhost:8080/api/bands', {
+    headers: {
+      Authorization: `Bearer ${token.value}`
+    }
   })
-  newBand.value = ''
-  fetchBands()
-}
 
-onMounted(fetchBands)
+  bands.value = res
+}
 </script>
+
+<style scoped>
+input {
+  outline: none;
+}
+</style>
